@@ -6,8 +6,8 @@
 //  Copyright (c) 2013 Shintaro Tanaka. All rights reserved.
 //
 
-#import <Foundation/Foundation.h>
 #import <CoreWLAN/CoreWLAN.h>
+#import <Foundation/Foundation.h>
 
 NSString *usage_string(NSString *arg0) {
     return [NSString stringWithFormat:@"usage: %@ <ifname> [<bssid>] [<password>]", arg0];
@@ -18,23 +18,26 @@ void dump_error(NSString *message) {
     exit(1);
 }
 
-char const *phyModeName( enum CWPHYMode n )
-{
-    switch( (int)n ) {
-        case kCWPHYModeNone: return "none";
-        case kCWPHYMode11n: return "802.11n";
-        case kCWPHYMode11a: return "802.11a";
-        case kCWPHYMode11ac: return "802.11ac";
-        case kCWPHYMode11g: return "802.11g";
-        case kCWPHYMode11b: return "802.11b";
-        default: return "other/unknown";
-            
+char const *phyModeName(enum CWPHYMode n) {
+    switch ((int)n) {
+        case kCWPHYModeNone:
+            return "none";
+        case kCWPHYMode11n:
+            return "802.11n";
+        case kCWPHYMode11a:
+            return "802.11a";
+        case kCWPHYMode11ac:
+            return "802.11ac";
+        case kCWPHYMode11g:
+            return "802.11g";
+        case kCWPHYMode11b:
+            return "802.11b";
+        default:
+            return "other/unknown";
     }
 }
 
-int main(int argc, const char * argv[])
-{
-
+int main(int argc, const char *argv[]) {
     @autoreleasepool {
         /**
          * Plan of improvement
@@ -51,7 +54,7 @@ int main(int argc, const char * argv[])
          *
          * <<keychain access>>
          */
-        
+
         // args check and initialization
         if (!(argc > 1)) dump_error(usage_string([NSString stringWithUTF8String:argv[0]]));
         NSString *interfaceName = [NSString stringWithUTF8String:argv[1]];
@@ -63,52 +66,98 @@ int main(int argc, const char * argv[])
         if (argc > 3) {
             password = [NSString stringWithUTF8String:argv[3]];
         }
-        
+        NSString *username = nil;
+        if (argc > 4) {
+            username = [NSString stringWithUTF8String:argv[4]];
+        }
+
         // interface check
         CWInterface *interface = [[[CWWiFiClient alloc] init] interfaceWithName:interfaceName];
-        if(interface.powerOn == NO )
-            dump_error(@"The interface is down. Please activate the interface before connecting to network!");
-        
-        printf("Notice: The interface %s is in %s phyMode.\n", [interfaceName cStringUsingEncoding:NSUTF8StringEncoding], phyModeName(interface.activePHYMode));
-        
+        if (interface.powerOn == NO)
+            dump_error(
+                @"The interface is down. Please activate the interface before connecting to "
+                @"network!");
+
+        printf("Notice: The interface %s is in %s phyMode.\n",
+               [interfaceName cStringUsingEncoding:NSUTF8StringEncoding],
+               phyModeName(interface.activePHYMode));
+
         // search for target bssid
         NSError *error = nil;
-        NSSortDescriptor *nameDescriptor = [NSSortDescriptor sortDescriptorWithKey:@"ssid" ascending:YES];
-        NSArray *scan = [[interface scanForNetworksWithSSID:nil error:&error] sortedArrayUsingDescriptors:[NSArray arrayWithObject:nameDescriptor]];
+        NSSortDescriptor *nameDescriptor =
+            [NSSortDescriptor sortDescriptorWithKey:@"ssid" ascending:YES];
+        NSArray *scan = [[interface scanForNetworksWithSSID:nil error:&error]
+            sortedArrayUsingDescriptors:[NSArray arrayWithObject:nameDescriptor]];
         if (error)
-            dump_error([NSString stringWithFormat:@"An error has been occurred while scanning networks: %@", error]);
+            dump_error([NSString
+                stringWithFormat:@"An error has been occurred while scanning networks: %@", error]);
         CWNetwork *targetNetwork = nil;
-        
+
         printf("\x1B[0m***** Scanned networks *****\n");
         printf("%24s, %17s, %3s, RSSI(dBm)\n", "ESSID", "BSSID", "Ch");
         for (CWNetwork *network in scan) {
             if ([network.bssid isEqualToString:bssid]) {
                 targetNetwork = network;
-                printf("%s%24s, %17s, %3lu, %3ld\n", "\x1B[32m", [network.ssid cStringUsingEncoding:NSUTF8StringEncoding], [network.bssid cStringUsingEncoding:NSUTF8StringEncoding], (unsigned long)network.wlanChannel.channelNumber, (long)network.rssiValue);
+                printf("%s%24s, %17s, %3lu, %3ld\n", "\x1B[32m",
+                       [network.ssid cStringUsingEncoding:NSUTF8StringEncoding],
+                       [network.bssid cStringUsingEncoding:NSUTF8StringEncoding],
+                       (unsigned long)network.wlanChannel.channelNumber, (long)network.rssiValue);
             } else {
-                printf("%s%24s, %17s, %3lu, %3ld\n", "\x1B[0m", [network.ssid cStringUsingEncoding:NSUTF8StringEncoding], [network.bssid cStringUsingEncoding:NSUTF8StringEncoding], (unsigned long)network.wlanChannel.channelNumber, (long)network.rssiValue);
+                printf("%s%24s, %17s, %3lu, %3ld\n", "\x1B[0m",
+                       [network.ssid cStringUsingEncoding:NSUTF8StringEncoding],
+                       [network.bssid cStringUsingEncoding:NSUTF8StringEncoding],
+                       (unsigned long)network.wlanChannel.channelNumber, (long)network.rssiValue);
             }
         }
         printf("\x1B[0m****************************\n");
 
         if (bssid == nil) {
-            dump_error([NSString stringWithFormat:@"Network scan completed. If you want to connect to specific BSSID, please enter the command below:\n %@ <ifname> <bssid> [<password>]", [NSString stringWithUTF8String:argv[0]]]);
+            dump_error([NSString stringWithFormat:@"Network scan completed. If you want to connect "
+                                                  @"to specific BSSID, please enter the command "
+                                                  @"below:\n %@ <ifname> <bssid> [<password>]",
+                                                  [NSString stringWithUTF8String:argv[0]]]);
         }
 
         if (targetNetwork == nil)
-            dump_error([NSString stringWithFormat:@"The target network \"%@\" could not be found.", bssid]);
-        
+            dump_error([NSString
+                stringWithFormat:@"The target network \"%@\" could not be found.", bssid]);
+
         // connection trial
-        BOOL result = [interface associateToNetwork:targetNetwork password:password error:&error];
-        
+        BOOL result = false;
+        // OSStatus err = 0;
+        if (username == nil) {
+            result = [interface associateToNetwork:targetNetwork password:password error:&error];
+        } else {
+            SecIdentityRef identity = 0;
+            // NSData *mySsid = [targetNetwork ssidData];
+            CFArrayRef identityList = CFArrayCreate(NULL, NULL, 0, NULL);
+            if (CWKeychainCopyEAPIdentityList(&identityList) == errSecSuccess) {
+                if (identityList == nil) {
+                    dump_error(@"No identities available.");
+                } else {
+                    // for (SecIdentityRef *iden in identityList) {
+                    printf("%ld\n", CFArrayGetCount(identityList));
+                    // }
+                }
+            } else {
+                dump_error(@"Failed to get identity list.");
+            }
+            identity = (SecIdentityRef)CFArrayGetValueAtIndex(identityList, 0);
+            // if (CWKeychainCopyWiFiEAPIdentity(kCWKeychainDomainSystem, mySsid, &identity) == errSecSuccess) {
+                result = [interface associateToEnterpriseNetwork:targetNetwork identity:identity username:username password:password error:&error];
+            // } else {
+                // dump_error(@"Failed to get identity.");
+            // }
+        }
+
         if (error)
             dump_error([NSString stringWithFormat:@"Could not connect to the network: %@", error]);
-        
-        if( !result )
-			dump_error(@"Could not connect to the network!");
-        
-        printf("Associated to network \"%s\" (BSSID: %s)\n", [targetNetwork.ssid cStringUsingEncoding:NSUTF8StringEncoding], [bssid cStringUsingEncoding:NSUTF8StringEncoding]);
+
+        if (!result) dump_error(@"Could not connect to the network!");
+
+        printf("Associated to network \"%s\" (BSSID: %s)\n",
+               [targetNetwork.ssid cStringUsingEncoding:NSUTF8StringEncoding],
+               [bssid cStringUsingEncoding:NSUTF8StringEncoding]);
     }
     return 0;
 }
-
